@@ -1,16 +1,38 @@
-// See the file alphabet-cipher.md for detailed information.
-
 type Message = string
 type Keyword = string
 
+let alphabet = "abcdefghijklmnopqrstuvwxyz"
+let charToIdx (c:char) = int(c) - int(alphabet.[0])
+
+let tableEnc (cipherCol:char) (messageRow:char) =
+    let size = alphabet.Length
+    alphabet.[(charToIdx cipherCol + charToIdx messageRow) % size]
+
+let tableDec (cipherCol:char) (messageRow:char) =
+    let size = alphabet.Length
+    alphabet.[(size + charToIdx messageRow - charToIdx cipherCol) % size]
+
+let translate table (key:Keyword) (message:Message) =
+    let repeatedKey = seq {while true do yield! key}
+    new string(Seq.map2 table repeatedKey message |> Seq.toArray)
+
 let encode (key:Keyword) (message:Message) : Message =
-    "encodeme"
+    translate tableEnc key message
 
 let decode (key:Keyword) (message:Message) : Message =
-    "decodeme"
+    translate tableDec key message
 
-let decipher (cipher:Message) (message:Message) : Keyword =
-    "decypherme"
+let repeatedPrefix (str:string) =
+    let rec findPrefix len =
+        let candidate = seq {for i in 0 .. str.Length -> str.[i % len]}
+        if Seq.forall2 (=) candidate str then
+            str.Substring(0, len)
+        else
+            findPrefix (len + 1)
+    findPrefix 1
+
+let decipher (cipher:Message) (message:Message) =
+    translate tableDec message cipher |> repeatedPrefix
 
 #r @"../packages/Unquote/lib/net45/Unquote.dll"
 open Swensen.Unquote
