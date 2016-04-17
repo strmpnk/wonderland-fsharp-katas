@@ -1,6 +1,4 @@
-// See the file card-game.md for detailed information.
-
-// feel free to use these cards or use your own data structure
+open System
 
 type Suit =
     | Spade
@@ -17,40 +15,81 @@ type Rank =
 
 type Card = Suit * Rank
 
-let playRound (card1:Card,card2:Card) =
-    failwith "not implemented: winning card"
+type Game =
+    | Playing of Card list * Card list
+    | Player1Win
+    | Player2Win
 
-let playGame (hand1:Card list, hand2:Card list) =
-    failwith "not implemented: game winner"
+// Make the values of cards explicit
+let value card =
+    let suiteValue =
+        match fst card with
+        | Spade -> 1
+        | Club -> 2
+        | Diamond -> 3
+        | Heart -> 4
+    let rankValue =
+        match snd card with
+        | Value n -> n
+        | Jack -> 11
+        | Queen -> 13
+        | King -> 14
+        | Ace -> 15
+    (rankValue, suiteValue)
 
-(*
-let suits = [ Spade; Club; Diamond; Heart ]
-let heads = [ Jack; Queen; King; Ace ]
+let playRound game =
+    match game with
+    | Player1Win | Player2Win -> failwith "game over"
+    | Playing (_, []) -> Player1Win
+    | Playing ([], _) -> Player2Win
+    | Playing (card1::rest1, card2::rest2) when value card1 < value card2 ->
+        Playing (rest1, rest2 @ [card2; card1])
+    | Playing (card1::rest1, card2::rest2) ->
+        Playing (rest1 @ [card1; card2], rest2)
 
-let ranks =
-    [   for v in 2 .. 10 -> Value v
-        for head in heads -> head
-    ]
+let playGame deck1 deck2 =
+    let rec loop game =
+        match game with
+        | Playing (p1, p2) ->
+            loop <| playRound game
+        | Player1Win ->
+            printfn "Player 1 wins"
+            game
+        | Player2Win ->
+            printfn "Player 2 wins"
+            game
+    loop <| Playing (deck1, deck2)
 
-let deck = seq {
-    for suit in suits do
-        for rank in ranks -> suit,rank }
-*)
+let fullDeck : Card list =
+    let suits = [Spade; Club; Diamond; Heart]
+    let ranks = [Jack; Queen; King; Ace] @ [for n in 2 .. 10 -> Value n]
+    [ for suit in suits do
+        for rank in ranks do
+            yield (suit, rank) ]
 
-// fill in tests for your game
+let shuffle deck : Card list =
+    let rand = new Random()
+    List.sortBy (fun _ -> rand.NextDouble()) deck
+
+let deal deck : Card list * Card list =
+    deck |> List.fold (fun  (left, right) card -> (right, card :: left)) ([], [])
+
+let uncurry f (x, y) = f x y
+
+fullDeck
+|> List.take 8
+|> shuffle
+|> deal
+|> uncurry playGame
+
+#r @"../packages/Unquote/lib/net45/Unquote.dll"
+open Swensen.Unquote
+
 let tests () =
 
-    // playRound
-    printfn "TODO: the highest rank wins the cards in the round"
-    printfn "TODO: queens are higher rank than jacks"
-    printfn "TODO: kings are higher rank than queens"
-    printfn "TODO: aces are higher rank than kings"
-    printfn "TODO: if the ranks are equal, clubs beat spades"
-    printfn "TODO: if the ranks are equal, diamonds beat clubs"
-    printfn "TODO: if the ranks are equal, hearts beat diamonds"
-
-    // playGame
-    printfn "TODO: the player loses when they run out of cards"
+    test <@ playGame [(Spade, Ace)] [(Spade, King)] = Player1Win @>
+    test <@ playGame [] [(Spade, King)] = Player2Win @>
+    test <@ playGame [(Spade, Ace)] [] = Player1Win @>
 
 // run the tests
 tests ()
